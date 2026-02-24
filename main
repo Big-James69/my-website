@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Game Platform</title>
+<style>
+body {margin:0; font-family:Arial, sans-serif; background:#0f172a; color:white;}
+header {padding:20px; text-align:center; font-size:24px; font-weight:bold; background:#111;}
+nav {display:flex; flex-wrap:wrap; justify-content:space-around; background:#222;}
+nav button {flex:1 1 100px; padding:12px; background:#333; color:white; border:none; cursor:pointer; margin:2px;}
+nav button.active {background:#6366f1;}
+section {display:none; padding:20px;}
+section.active {display:block;}
+textarea, input {width:100%; padding:10px; margin:10px 0; background:#111; color:white; border:none; border-radius:5px;}
+button.action {padding:10px 20px; background:#6366f1; border:none; color:white; border-radius:5px; cursor:pointer; margin:5px 0;}
+.output {background:#222; padding:15px; border-radius:8px; min-height:50px; white-space:pre-wrap; overflow-x:auto;}
+.game-grid {display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-top:10px;}
+.game-card {padding:15px; background:#222; border-radius:8px; cursor:pointer; text-align:center;}
+.game-card:hover {background:#6366f1;}
+canvas {background:#111; display:block; margin:0 auto; border:1px solid #333;}
+@media (max-width:600px){nav{flex-direction:column;}}
+</style>
+</head>
+<body>
+
+<header>AI Game Platform</header>
+
+<nav>
+<button data-tab="login" class="active">Login/Register</button>
+<button data-tab="dungeon">AI Dungeon</button>
+<button data-tab="games">Games</button>
+<button data-tab="maker">Game Maker</button>
+<button data-tab="chat">AI Chat</button>
+</nav>
+
+<section id="login" class="active">
+<h2>Register / Login (Demo)</h2>
+<input id="username" placeholder="Username">
+<input id="password" type="password" placeholder="Password">
+<button class="action" onclick="register()">Register</button>
+<button class="action" onclick="login()">Login</button>
+<div id="loginMsg" class="output"></div>
+</section>
+
+<section id="dungeon">
+<h2>AI Dungeon</h2>
+<input id="dungeonTitle" placeholder="Story title">
+<textarea id="dungeonInput" placeholder="Your prompt..."></textarea>
+<button class="action" onclick="runDungeon()">Generate Story</button>
+<button class="action" onclick="shareDungeon()">Share Story</button>
+<div id="dungeonOutput" class="output"></div>
+</section>
+
+<section id="games">
+<h2>Games</h2>
+<div class="game-grid" id="gamesList"></div>
+</section>
+
+<section id="maker">
+<h2>Game Maker</h2>
+<textarea id="makerInput" placeholder="Write your canvas game JS code..."></textarea>
+<button class="action" onclick="makeGame()">Run Game</button>
+<button class="action" onclick="shareGame()">Share Game</button>
+<div id="makerOutput" class="output"></div>
+<div id="gamePlayArea"></div>
+</section>
+
+<section id="chat">
+<h2>AI Chat</h2>
+<div id="chatWindow" class="output" style="height:300px; overflow-y:auto;"></div>
+<input id="chatInput" placeholder="Type a message...">
+<button class="action" onclick="sendChat()">Send</button>
+</section>
+
+<script>
+// --- Tab Switching ---
+document.querySelectorAll('nav button').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+        document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+        document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+});
+
+// --- Demo Login/Register ---
+let currentUser = null;
+function register(){
+    const u = document.getElementById('username').value;
+    if(!u) return alert("Enter a username");
+    currentUser = u;
+    document.getElementById('loginMsg').innerText = "Registered as " + u;
+}
+function login(){
+    const u = document.getElementById('username').value;
+    if(!u) return alert("Enter a username");
+    currentUser = u;
+    document.getElementById('loginMsg').innerText = "Logged in as " + u;
+}
+
+// --- GPT AI Dungeon ---
+async function runDungeon(){
+    if(!currentUser){ alert("Login first"); return;}
+    const title = document.getElementById('dungeonTitle').value || "Story";
+    const promptText = document.getElementById('dungeonInput').value;
+    const output = document.getElementById('dungeonOutput');
+
+    // Call your GPT API here (demo uses reversed text)
+    // Replace with fetch('/api/gpt', {method:'POST', body:JSON.stringify({prompt:promptText})})
+    const aiResp = "🤖 " + promptText.split('').reverse().join('');
+
+    output.innerText = aiResp;
+    // Store in URL param for sharing
+    const storyData = {title, prompt: promptText, aiResp};
+    const encoded = encodeURIComponent(JSON.stringify(storyData));
+    window.history.replaceState(null, "", "?story=" + encoded);
+}
+
+// Share Story
+function shareDungeon(){
+    const link = window.location.href;
+    prompt("Share this story link:", link);
+}
+
+// Load story from URL
+window.addEventListener('load', ()=>{
+    const params = new URLSearchParams(window.location.search);
+    if(params.has('story')){
+        const data = JSON.parse(decodeURIComponent(params.get('story')));
+        document.getElementById('dungeonTitle').value = data.title;
+        document.getElementById('dungeonInput').value = data.prompt;
+        document.getElementById('dungeonOutput').innerText = data.aiResp;
+        document.querySelector('nav button[data-tab="dungeon"]').click();
+    }
+});
+
+// --- Game Maker ---
+function makeGame(){
+    const code = document.getElementById('makerInput').value;
+    const area = document.getElementById('gamePlayArea');
+    area.innerHTML = `<canvas id="c" width="300" height="300"></canvas>`;
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    try { eval(code); document.getElementById('makerOutput').innerText = "Game running!"; }
+    catch(e){ document.getElementById('makerOutput').innerText = "Error: "+e; }
+}
+
+// Share Game
+function shareGame(){
+    const code = document.getElementById('makerInput').value;
+    const encoded = encodeURIComponent(code);
+    const link = window.location.origin + window.location.pathname + "?game=" + encoded;
+    prompt("Share this game link:", link);
+}
+
+// Load game from URL
+window.addEventListener('load', ()=>{
+    const params = new URLSearchParams(window.location.search);
+    if(params.has('game')){
+        const code = decodeURIComponent(params.get('game'));
+        document.getElementById('makerInput').value = code;
+        makeGame();
+        document.querySelector('nav button[data-tab="maker"]').click();
+    }
+});
+
+// --- GPT AI Chat ---
+async function sendChat(){
+    if(!currentUser){ alert("Login first"); return;}
+    const msg = document.getElementById('chatInput').value;
+    const win = document.getElementById('chatWindow');
+    win.innerHTML += `\nYou: ${msg}`;
+
+    // Replace this with GPT API call
+    const resp = "🤖 " + msg.split('').reverse().join('');
+    win.innerHTML += `\nAI: ${resp}`;
+    document.getElementById('chatInput').value="";
+    win.scrollTop = win.scrollHeight;
+}
+</script>
+</body>
+</html>
